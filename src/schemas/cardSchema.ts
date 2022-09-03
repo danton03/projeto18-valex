@@ -1,6 +1,7 @@
 import joi from "joi";
 
-const typeCardSchema: joi.ObjectSchema = joi.object({
+const cardSchema: joi.ObjectSchema = joi.object({
+  employeeId: joi.number().required(),
   type: joi.string().valid(
   'groceries', 
   'restaurant', 
@@ -11,4 +12,4 @@ const typeCardSchema: joi.ObjectSchema = joi.object({
   .required()
 })
 
-export { typeCardSchema };
+export { cardSchema };
