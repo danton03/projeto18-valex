@@ -9,6 +9,10 @@ async function errorHandler(
   if(error.code === 'NotFound') {
     return res.status(404).send(error.message);
   }
+
+  else if(error.code === 'Conflict') {
+    return res.status(409).send(error.message);
+  }
   
   else if(error.code === 'IncompatibleFormat') {
     return res.status(422).send(error.message);
