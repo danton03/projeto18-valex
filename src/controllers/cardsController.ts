@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { storeCard } from "../services/createCardServices";
+import { activateCardService, createCardService } from "../services/cardServices";
 
 export async function createCard(req: Request, res: Response) {
   const { apiKey } = res.locals;
@@ -9,6 +9,12 @@ export async function createCard(req: Request, res: Response) {
     employeeId, 
     type
   }
-  await storeCard(cardData);
-  return res.status(201).send('Cartão criado!');
+  const createdCard: object = await createCardService(cardData);
+  return res.status(201).send(createdCard);
+}
+
+export async function activateCard(req: Request, res: Response) {
+  const cardData = req.body;
+  await activateCardService(cardData);
+  return res.status(200).send("Cartão ativado!");
 }

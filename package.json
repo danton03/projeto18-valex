@@ -20,6 +20,8 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "bcrypt": "^5.0.1",
     "cors": "^2.8.5",
     "cryptr": "^6.0.3",
     "dayjs": "^1.11.5",

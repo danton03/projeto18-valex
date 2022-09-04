@@ -1,14 +1,19 @@
-import { CardInsertData, findByTypeAndEmployeeId, insert, TransactionTypes } from "../repositories/cardRepository";
+import { CardInsertData, CardUpdateData, findByTypeAndEmployeeId, insert, TransactionTypes } from "../repositories/cardRepository";
 import { findByApiKey } from "../repositories/companyRepository";
 import { findById } from "../repositories/employeeRepository";
+import * as cardRepository from "../repositories/cardRepository";
 import { faker } from "@faker-js/faker";
 import dayjs from "dayjs";
 import Cryptr from "cryptr";
 import dotenv from "dotenv";
+import bcrypt from "bcrypt";
 
 dotenv.config();
 
-export async function storeCard(requestData: { apiKey: string, employeeId: number, type: TransactionTypes }) {
+const ENCRYPT_KEY: string = String(process.env.ENCRYPT_KEY);
+const cryptr = new Cryptr(ENCRYPT_KEY);
+
+export async function createCardService(requestData: { apiKey: string, employeeId: number, type: TransactionTypes }){
   const { apiKey, employeeId, type } = requestData;
 
   //verifica se a api-key é válida
@@ -44,9 +49,43 @@ export async function storeCard(requestData: { apiKey: string, employeeId: numbe
     isBlocked: false,
     type,
   };
-  await insert(cardData); 
+
+  //Cria o cartão e recebe o id
+  const { id } = await insert(cardData);
+
+  //retorna os dados do cartão cadastrado
+  return {
+    id,
+    number: cardNumber,
+    cardholderName: cardHolderName,
+    cvc,
+    expirationDate,
+    type,
+  }
 }
 
+export async function activateCardService(requestData: { id: number, cvc: string, password: string }){
+  const { id, cvc, password } = requestData;
+
+  const card = await verifyCardExistence(id);
+
+  await verifyCardValidity(card.expirationDate);
+
+  if (card.password) {
+    throw { 
+      code: 'Conflict', 
+      message: 'O cartão informado já está ativado.' 
+    }
+  }
+
+  verifyCVC(cvc, card.securityCode);
+
+  const encryptedPassword = encryptPassword(password);
+
+  await cardRepository.update(id, {password: encryptedPassword});
+}
+
+//Funções auxiliares
 async function verifyApiKeyExistence(apiKey: string) {
   const apiKeyExists: object = await findByApiKey(apiKey);
   if (!apiKeyExists) {
@@ -81,19 +120,56 @@ async function verifyEmployeeCardConflict(type: TransactionTypes, employeeId: nu
 
 function formatHolderName(employeeFullName: string): string {
   let splitedName: string[] = employeeFullName.toLocaleUpperCase().split(' ').filter((str) => (str.length >= 3))
-  const formatedSptlitedName = splitedName.map((str, index) => {
+  const formatedSplitedName = splitedName.map((str, index) => {
     if (index > 0 && index < (splitedName.length-1)) {
       return str[0]; 
     }
     return str;
   });
-  const holderName = formatedSptlitedName.join(' ');
+  const holderName = formatedSplitedName.join(' ');
   return holderName;
 }
 
 function encryptCVC(cvc: string): string {
-  const ENCRYPT_KEY: string = String(process.env.ENCRYPT_KEY);
-  const cryptr = new Cryptr(ENCRYPT_KEY);
   const encryptedCVC: string = cryptr.encrypt(cvc);
   return encryptedCVC;
+}
+
+async function verifyCardExistence(id: number) {
+  const card = await cardRepository.findById(id);
+  if(!card){
+    throw  {
+      code: 'NotFound', 
+      message: 'Não foi encontrado nenhum cartão com os dados informados'
+    }
+  }
+  return card;
+}
+
+async function verifyCardValidity(expirationDate: string) {
+  const dateDifference = dayjs(expirationDate).diff(dayjs().format('MM/YY'),'month', true);
+  if (dateDifference < 0) {
+    throw  {
+      code: 'Expired', 
+      message: 'Não é possível ativar um cartão com a validade expirada.'
+    }
+  }
+  return false;
+}
+
+function verifyCVC(cvc: string, encryptedCVC: string) {
+  const decryptedCVC: string = cryptr.decrypt(encryptedCVC);
+  if (!(cvc === decryptedCVC)) {
+    throw  {
+      code: 'BadRequest', 
+      message: 'O CVC informado está incorreto.'
+    }
+  }
+  return false;
+}
+
+function encryptPassword(password: string) {
+  const SALT = 12;
+  const encryptedPassword = bcrypt.hashSync(password, SALT);
+  return encryptedPassword;
 }
