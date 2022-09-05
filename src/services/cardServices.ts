@@ -4,6 +4,7 @@ import { findById } from "../repositories/employeeRepository";
 import * as cardRepository from "../repositories/cardRepository";
 import * as paymentRepository from "../repositories/paymentRepository";
 import * as rechargeRepository from "../repositories/rechargeRepository";
+import * as businessRepository from "../repositories/businessRepository";
 import { faker } from "@faker-js/faker";
 import dayjs from "dayjs";
 import Cryptr from "cryptr";
@@ -102,7 +103,7 @@ export async function generateBalanceService(id: number){
 }
 
 export async function  blockCardService(id: number, password: string){
-  //Verifica se o carão é cadastrado
+  //Verifica se o cartão é cadastrado
   const card = await verifyCardExistence(id);
   //Verifica se o cartão não expirou
   const operation = "bloquear";
@@ -116,7 +117,7 @@ export async function  blockCardService(id: number, password: string){
 }
 
 export async function  unblockCardService(id: number, password: string){
-  //Verifica se o carão é cadastrado
+  //Verifica se o catrão é cadastrado
   const card = await verifyCardExistence(id);
   //Verifica se o cartão não expirou
   const operation = "desbloquear";
@@ -127,6 +128,48 @@ export async function  unblockCardService(id: number, password: string){
   authenticatePassword(password, card.password);
   //Bloqueia o cartão
   await cardRepository.update(id, {isBlocked: false});
+}
+
+export async function  rechargeCardService(id: number, amount: number, apiKey: string){
+  //verifica se a api-key é válida
+  await verifyApiKeyExistence(apiKey);
+  //Verifica se o cartão é cadastrado
+  const card = await verifyCardExistence(id);
+  //Verifica se o cartão está ativo
+  verifyIfCardIsActive(card.password);
+  //Verifica se o cartão não expirou
+  const operation = "recarregar";
+  await verifyCardValidity(card.expirationDate, operation);
+  //Recarrega o cartão
+  await rechargeRepository.insert({cardId: card.id, amount})
+}
+
+export async function  paymentService(paymentData: { 
+  cardId: number, password: string, businessId: number, amount: number 
+}){
+  const { cardId, password, businessId, amount } = paymentData;
+  //Verifica se o cartão é cadastrado
+  const card = await verifyCardExistence(cardId);
+  //Verifica se o cartão está ativo
+  verifyIfCardIsActive(card.password);
+  //Verifica se o cartão não expirou
+  const operation = "utilizar";
+  await verifyCardValidity(card.expirationDate, operation);
+  //Verifica se o cartão não está bloqueado
+  if (card.isBlocked) {
+    throw { 
+      code: 'Unauthorized', 
+      message: 'O cartão informado está bloqueado.' 
+    }
+  }
+  //Verifica se a senha está correta
+  authenticatePassword(password, card.password);
+  //Verifica se o estabelecimento existe
+  await validateBusiness(businessId, card.type);
+  //verifica se o saldo é suficiente para a compra
+  await validateBalance(card.id, amount);
+  //Finaliza a compra
+  await paymentRepository.insert({cardId: card.id, businessId, amount});
 }
 
 //Funções auxiliares
@@ -258,6 +301,48 @@ function authenticatePassword(password: string, encryptedPassword: string) {
     throw { 
       code: 'Unauthorized', 
       message: 'Credencial inválida.' 
+    }
+  }
+}
+
+function verifyIfCardIsActive(password: string) {
+  if (!password) {
+    throw { 
+      code: 'BadRequest', 
+      message: 'O cartão informado ainda não foi ativado.' 
+    }
+  }
+}
+
+async function validateBusiness(id: number, cardType: string) {
+  const business = await businessRepository.findById(id);
+
+  if(!business){
+    throw  {
+      code: 'NotFound', 
+      message: 'Não foi encontrado nenhum estabelecimento com os dados informados'
+    }
+  }
+
+  else if(business.type !== cardType){
+    throw  {
+      code: 'BadRequest', 
+      message: `O estabelecimento não aceita cartões do tipo ${cardType}`
+    }
+  }
+
+  return business;
+}
+
+async function validateBalance(cardId: number, amount: number) {
+  const transactions = await paymentRepository.findByCardId(cardId);
+  const recharges = await rechargeRepository.findByCardId(cardId);
+  const balance = calculateBalance(transactions, recharges);
+
+  if(balance < amount){
+    throw  {
+      code: 'Unauthorized', 
+      message: 'Saldo insuficiente.'
     }
   }
 }

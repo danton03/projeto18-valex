@@ -26,6 +26,10 @@ async function errorHandler(
     return res.status(401).send(error.message);
   }
 
+  else if(error.code === 'BadRequest') {
+    return res.status(400).send(error.message);
+  }
+
   res.sendStatus(500);
 }
 
