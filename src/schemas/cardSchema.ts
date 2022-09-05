@@ -14,8 +14,8 @@ const cardSchema: joi.ObjectSchema = joi.object({
 
 const cardToActivateSchema: joi.ObjectSchema = joi.object({
   id: joi.number().required(),
-  cvc: joi.string().pattern(/[0-9]{3}/).required(),
-  password: joi.string().pattern(/[0-9]{4}/).required()
+  cvc: joi.string().pattern(/^[0-9]{3}$/).required(),
+  password: joi.string().pattern(/^[0-9]{4}$/).required()
 });
 
 const cardIdSchema: joi.ObjectSchema = joi.object({
@@ -23,7 +23,7 @@ const cardIdSchema: joi.ObjectSchema = joi.object({
 });
 
 const passwordSchema: joi.ObjectSchema = joi.object({
-  password: joi.string().pattern(/[0-9]{4}/).required()
+  password: joi.string().pattern(/^[0-9]{4}$/).required()
 });
 
 const amountSchema: joi.ObjectSchema = joi.object({
@@ -32,7 +32,7 @@ const amountSchema: joi.ObjectSchema = joi.object({
 
 const paymentSchema: joi.ObjectSchema = joi.object({
   cardId: joi.number().required(),
-  password: joi.string().pattern(/[0-9]{4}/).required(),
+  password: joi.string().pattern(/^[0-9]{4}$/).required(),
   businessId: joi.number().required(),
   amount: joi.number().min(1).required()
 });
