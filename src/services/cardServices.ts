@@ -1,7 +1,9 @@
-import { CardInsertData, CardUpdateData, findByTypeAndEmployeeId, insert, TransactionTypes } from "../repositories/cardRepository";
+import { CardInsertData, findByTypeAndEmployeeId, insert, TransactionTypes } from "../repositories/cardRepository";
 import { findByApiKey } from "../repositories/companyRepository";
 import { findById } from "../repositories/employeeRepository";
 import * as cardRepository from "../repositories/cardRepository";
+import * as paymentRepository from "../repositories/paymentRepository";
+import * as rechargeRepository from "../repositories/rechargeRepository";
 import { faker } from "@faker-js/faker";
 import dayjs from "dayjs";
 import Cryptr from "cryptr";
@@ -83,6 +85,19 @@ export async function activateCardService(requestData: { id: number, cvc: string
   const encryptedPassword = encryptPassword(password);
 
   await cardRepository.update(id, {password: encryptedPassword});
+}
+
+export async function generateBalanceService(id: number){
+  const card = await verifyCardExistence(id);
+  const transactions = await paymentRepository.findByCardId(card.id);
+  const recharges = await rechargeRepository.findByCardId(card.id);
+  const balance = calculateBalance(transactions, recharges);
+
+  return {
+    balance, 
+    transactions, 
+    recharges
+  }
 }
 
 //Funções auxiliares
@@ -172,4 +187,20 @@ function encryptPassword(password: string) {
   const SALT = 12;
   const encryptedPassword = bcrypt.hashSync(password, SALT);
   return encryptedPassword;
+}
+
+function calculateBalance(transactions: any, recharges: any) {
+  let transactionsValue: number = 0;
+  let rechargesValue: number = 0;
+
+  for (const transaction of transactions) {
+    transactionsValue += transaction.amount;
+  }
+
+  for (const recharge of recharges) {
+    rechargesValue += recharge.amount;
+  }
+
+  const balance = rechargesValue - transactionsValue;
+  return balance;
 }

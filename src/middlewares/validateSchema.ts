@@ -7,7 +7,7 @@ export function validateSchema(schema: joi.Schema, data: any) {
     console.log(validation.error.message);
     throw { 
       code: 'IncompatibleFormat', 
-      message: 'Os dados fornecidos não estão no formato esperado.' 
+      message: 'Informe os dados corretamente.' 
     }
   }
 }

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { apiKeySchema } from "../schemas/apiKeySchema";
-import { cardSchema, cardToActivateSchema } from "../schemas/cardSchema";
+import { cardIdSchema, cardSchema, cardToActivateSchema } from "../schemas/cardSchema";
 import { validateSchema } from "./validateSchema";
 
 function createCardValidations(req: Request, res: Response, next: NextFunction) {
@@ -18,4 +18,10 @@ function activateCardValidations(req: Request, res: Response, next: NextFunction
   next();
 }
 
-export { createCardValidations, activateCardValidations };
+function cardIdValidation(req: Request, res: Response, next: NextFunction) {
+  const { id } = req.params;
+  validateSchema(cardIdSchema, { id });
+  next();
+}
+
+export { createCardValidations, activateCardValidations, cardIdValidation };
