@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { activateCardService, createCardService, generateBalanceService } from "../services/cardServices";
+import { activateCardService, blockCardService, createCardService, generateBalanceService, unblockCardService } from "../services/cardServices";
 
 export async function createCard(req: Request, res: Response) {
   const { apiKey } = res.locals;
@@ -26,7 +26,22 @@ export async function showBalanceAndTransactions(req: Request, res: Response) {
 }
 
 export async function blockCard(req: Request, res: Response) {
+  const { password } = req.body;
   const cardId: number = Number(req.params.id);
-  //await blockCardService(cardId);
+  await blockCardService(cardId, password);
   return res.status(200).send("Cartão bloqueado");
+}
+
+export async function unblockCard(req: Request, res: Response) {
+  const { password } = req.body;
+  const cardId: number = Number(req.params.id);
+  await unblockCardService(cardId, password);
+  return res.status(200).send("Cartão desbloqueado");
+}
+
+export async function rechargeCard(req: Request, res: Response) {
+  const { password } = req.body;
+  const cardId: number = Number(req.params.id);
+  await unblockCardService(cardId, password);
+  return res.status(200).send("Cartão desbloqueado");
 }

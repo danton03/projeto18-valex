@@ -22,8 +22,8 @@ async function errorHandler(
     return res.status(406).send(error.message);
   }
 
-  else if(error.code === 'BadRequest') {
-    return res.status(406).send(error.message);
+  else if(error.code === 'Unauthorized') {
+    return res.status(401).send(error.message);
   }
 
   res.sendStatus(500);

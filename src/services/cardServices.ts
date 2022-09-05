@@ -71,7 +71,8 @@ export async function activateCardService(requestData: { id: number, cvc: string
 
   const card = await verifyCardExistence(id);
 
-  await verifyCardValidity(card.expirationDate);
+  const operation = "ativar";
+  await verifyCardValidity(card.expirationDate, operation);
 
   if (card.password) {
     throw { 
@@ -98,6 +99,34 @@ export async function generateBalanceService(id: number){
     transactions, 
     recharges
   }
+}
+
+export async function  blockCardService(id: number, password: string){
+  //Verifica se o carão é cadastrado
+  const card = await verifyCardExistence(id);
+  //Verifica se o cartão não expirou
+  const operation = "bloquear";
+  await verifyCardValidity(card.expirationDate, operation);
+  //Verifica se o cartão não está bloqueado
+  verifyIfBlocked(card.isBlocked);
+  //Verifica se a senha está correta
+  authenticatePassword(password, card.password);
+  //Bloqueia o cartão
+  await cardRepository.update(id, {isBlocked: true});
+}
+
+export async function  unblockCardService(id: number, password: string){
+  //Verifica se o carão é cadastrado
+  const card = await verifyCardExistence(id);
+  //Verifica se o cartão não expirou
+  const operation = "desbloquear";
+  await verifyCardValidity(card.expirationDate, operation);
+  //Verifica se o cartão não está bloqueado
+  verifyIfUnblocked(card.isBlocked);
+  //Verifica se a senha está correta
+  authenticatePassword(password, card.password);
+  //Bloqueia o cartão
+  await cardRepository.update(id, {isBlocked: false});
 }
 
 //Funções auxiliares
@@ -161,12 +190,12 @@ async function verifyCardExistence(id: number) {
   return card;
 }
 
-async function verifyCardValidity(expirationDate: string) {
+async function verifyCardValidity(expirationDate: string, operation: string) {
   const dateDifference = dayjs(expirationDate).diff(dayjs().format('MM/YY'),'month', true);
   if (dateDifference < 0) {
     throw  {
       code: 'Expired', 
-      message: 'Não é possível ativar um cartão com a validade expirada.'
+      message: `Não é possível ${operation} um cartão com a validade expirada.`
     }
   }
   return false;
@@ -203,4 +232,32 @@ function calculateBalance(transactions: any, recharges: any) {
 
   const balance = rechargesValue - transactionsValue;
   return balance;
+}
+
+function verifyIfBlocked(isBlocked: boolean) {
+  if (isBlocked) {
+    throw { 
+      code: 'Conflict', 
+      message: 'O cartão informado já está bloqueado.' 
+    }
+  }
+}
+
+function verifyIfUnblocked(isBlocked: boolean) {
+  if (!isBlocked) {
+    throw { 
+      code: 'Conflict', 
+      message: 'O cartão informado já está desbloqueado.' 
+    }
+  }
+}
+
+function authenticatePassword(password: string, encryptedPassword: string) {
+  const comparePassword = bcrypt.compareSync(password, encryptedPassword);
+  if(!comparePassword){
+    throw { 
+      code: 'Unauthorized', 
+      message: 'Credencial inválida.' 
+    }
+  }
 }
